@@ -4,8 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌈 Trip Split — หารค่าทริปกับเพื่อน</title>
+<!-- build: v-green-2 -->
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --grad: linear-gradient(120deg,#a06bff,#ec4899 52%,#f59e0b);
@@ -45,6 +49,7 @@
   header{max-width:1240px;margin:0 auto;padding:22px 24px 4px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:13px}
   .logo{width:44px;height:44px;border-radius:13px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:var(--shadow)}
+  .brandlogo{height:72px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
   .brand h1{font-size:20px;margin:0;font-weight:600;letter-spacing:-.3px}
   .brand .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
   .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -64,8 +69,13 @@
   input::placeholder,textarea::placeholder{color:var(--muted)}
   input:focus,select:focus,textarea:focus{border-color:var(--r-purple);box-shadow:0 0 0 3px rgba(160,107,255,.15)}
   textarea{resize:vertical;min-height:44px}
+  input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.6);opacity:.9;cursor:pointer}
+  [data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.35);opacity:.8}
   select{cursor:pointer}
   .row{display:flex;gap:11px}.row>*{flex:1}
+  #tripSelect{background-image:none}
+  #tripSelect option{background:#1b1730;color:#f2f0fa;font-size:16px;font-weight:600;padding:10px}
+  [data-theme="light"] #tripSelect option{background:#ffffff;color:#2a2342}
 
   button{cursor:pointer;border:none;border-radius:12px;padding:11px 17px;font-size:13.5px;font-weight:600;
     font-family:'Kanit',sans-serif;color:var(--txt);transition:transform .1s,filter .15s,background .15s}
@@ -88,6 +98,17 @@
   .gender-seg{display:flex;gap:6px;margin-top:8px}
   .gender-seg button{flex:1;background:var(--slot);border:1.5px solid var(--line);color:var(--muted);padding:9px;font-size:12.5px;border-radius:10px;font-weight:500}
   .gender-seg button.on{border-color:var(--r-purple);color:var(--txt);background:rgba(160,107,255,.12)}
+  .pay-box{margin-top:6px;padding:12px;border:1.5px dashed var(--line);border-radius:12px;background:var(--card-soft)}
+  .pay-box label span{font-size:13px;font-weight:500;color:var(--txt)}
+  .pay-info{font-size:13.5px;color:var(--txt2);margin-top:4px}
+  .pay-info .bk{display:block;margin:0 0 10px}
+  .pay-info .bk:last-child{margin-bottom:0}
+  .pay-info .bk .bk-acc{display:block;font-weight:600;color:var(--txt);font-size:14px;line-height:1.5}
+  .pay-info .bk .bk-nm{display:block;font-size:12.5px;color:var(--txt2);line-height:1.4;margin-top:2px}
+  .copy-mini{cursor:pointer;color:var(--r-purple);font-size:11px;font-weight:600;border:1px solid var(--line2);border-radius:6px;padding:1px 6px;background:var(--card)}
+  .copy-mini:hover{background:var(--slot)}
+  #cloudBtn.cloud-synced{background:rgba(16,185,129,.15);border-color:var(--r-green);color:var(--r-green)}
+  #cloudBtn.cloud-synced:hover{background:rgba(16,185,129,.25)}
 
   .hero{border-radius:16px;padding:18px 20px;margin-bottom:16px;background:var(--grad);box-shadow:var(--shadow)}
   .hero .lbl{font-size:13px;color:#ffffffdd;margin-bottom:3px}
@@ -125,7 +146,7 @@
 
   .stats{display:flex;gap:10px;margin-bottom:14px}
   .stat{flex:1;background:var(--card-soft);border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 13px;text-align:center}
-  .stat .v{font-size:19px;font-weight:700}.stat .k{font-size:11px;color:var(--muted);margin-top:2px}
+  .stat .v{font-size:26px;font-weight:700;letter-spacing:-.3px}.stat .k{font-size:12.5px;color:var(--muted);margin-top:3px}
 
   .settle-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:12px;background:var(--card-soft);border:1.5px solid var(--line);margin-bottom:9px}
   .arrow{color:var(--r-purple);font-size:17px;font-weight:700}
@@ -159,7 +180,9 @@
   .cap-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:18px}
   @media(max-width:760px){.cap-cols{grid-template-columns:1fr;gap:16px}}
 
-  .cap-hero{border-radius:14px;padding:18px 22px;background:var(--grad);display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+  .cap-hero{border-radius:0;padding:22px 26px;background:var(--grad);display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .cap-hero>div{min-width:0}
+  .cap-hero .n{line-height:1.15;word-break:break-word}
   .cap-hero .t{font-size:13px;color:#fff;opacity:.9}
   .cap-hero .n{font-size:21px;font-weight:700;color:#fff}
   .cap-hero .a{font-size:30px;font-weight:700;color:#fff;margin-left:auto}
@@ -168,7 +191,7 @@
   .tbl-title{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 9px;display:flex;align-items:center;gap:6px}
   table.sum{width:100%;border-collapse:collapse;font-size:13.5px}
   table.sum th{color:var(--muted);font-size:12px;font-weight:500;padding:8px 7px;text-align:left}
-  table.sum td{padding:11px 7px;border-top:1px solid var(--line)}
+  table.sum td{padding:11px 7px;border-top:1px solid var(--line);vertical-align:top}
   table.sum .ar{text-align:right}
   table.sum .tot{background:var(--card-soft);font-weight:700}
   .tcell{display:inline-flex;align-items:center;gap:7px}
@@ -182,71 +205,120 @@
 
 <header>
   <div class="brand">
-    <div class="logo">🌈</div>
+    <img class="brandlogo" id="brandLogo" alt="ParitS">
     <div>
-      <h1>Trip Split</h1>
-      <div class="sub">หารค่าทริปกับเพื่อน · เซฟในเครื่องอัตโนมัติ</div>
+      <div class="sub" data-i18n="appSub">หารค่าทริปกับเพื่อน · เซฟในเครื่องอัตโนมัติ</div>
     </div>
   </div>
   <div class="tools">
+    <button class="btn-soft btn-sm" id="cloudBtn" onclick="openTokenModal()" title="Token Sync" style="display:none"></button>
+    <button class="btn-soft btn-sm" id="langBtn" onclick="toggleLang()" title="TH / EN">TH</button>
     <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="สลับโหมดสว่าง/มืด">🌙</button>
-    <button class="btn-grad btn-sm" onclick="exportData()" title="บันทึกข้อมูลทริปลงไฟล์ .json (เอาไปเก็บใน Drive ได้)">💾 Save ข้อมูล</button>
-    <button class="btn-soft btn-sm" onclick="document.getElementById('imp').click()" title="เปิดไฟล์ข้อมูลที่เคยบันทึกไว้">📂 เปิดไฟล์</button>
-    <input id="imp" type="file" accept="application/json" style="display:none" onchange="importData(event)">
     <button class="btn-soft btn-sm danger" onclick="resetAll()" title="ล้างข้อมูลทั้งหมด">🗑</button>
   </div>
 </header>
 
 <div class="wrap">
-  <label style="margin-top:2px">🎒 ชื่อทริป</label>
-  <input id="tripName" placeholder="เช่น ทริปเชียงใหม่ 2026" oninput="state.tripName=this.value;save()">
+  <label style="margin-top:2px;font-size:16px;font-weight:600" data-i18n="tripNameLbl">🎒 ชื่อทริป</label>
+  <div class="row" style="align-items:stretch">
+    <select id="tripSelect" style="font-size:18px;font-weight:600;padding:14px 16px;flex:1" onchange="onTripSelect(this.value)"></select>
+    <button class="btn-soft" style="flex:0 0 auto" onclick="renameCurrentTrip()" title="แก้ชื่อทริปที่เลือก">✏️</button>
+    <button class="btn-soft danger" style="flex:0 0 auto" onclick="deleteTrip()" title="ลบทริปนี้">🗑</button>
+  </div>
+  <label style="font-size:12.5px;color:var(--txt2);margin-top:10px" data-i18n="newTripLbl">➕ ทริปใหม่</label>
+  <div class="row" style="align-items:stretch">
+    <input id="newTripName" style="font-size:18px;font-weight:600;padding:14px 16px;flex:1" data-i18n-ph="tripNamePh" placeholder="ระบุชื่อทริป" onkeydown="if(event.key==='Enter')newTrip()">
+    <button class="btn-grad" style="flex:0 0 auto" onclick="newTrip()" data-i18n="newTrip">+ ทริปใหม่</button>
+  </div>
 </div>
 
 <div class="wrap grid">
   <!-- LEFT -->
   <div style="display:flex;flex-direction:column;gap:20px">
     <div class="card">
-      <div class="card-h"><span class="ic" style="background:rgba(160,107,255,.16)">👥</span> สมาชิกในทริป</div>
+      <div class="card-h"><span class="ic" style="background:rgba(160,107,255,.16)">👥</span> <span data-i18n="membersTitle">สมาชิกในทริป</span></div>
+      <div id="memEditBanner" class="edit-banner" style="margin-bottom:10px">
+        <span data-i18n="editingMember">✏️ กำลังแก้ไขสมาชิก</span>
+        <button class="btn-soft btn-sm" onclick="cancelEditMember()" data-i18n="cancel">ยกเลิก</button>
+      </div>
       <div class="row">
-        <input id="memName" placeholder="ใส่ชื่อเพื่อน" onkeydown="if(event.key==='Enter')addMember()">
-        <button class="btn-grad" style="flex:0 0 auto" onclick="addMember()">+ เพิ่ม</button>
+        <input id="memName" data-i18n-ph="memNamePh" placeholder="ใส่ชื่อเพื่อน" onkeydown="if(event.key==='Enter')addMember()">
+        <button id="memBtn" class="btn-grad" style="flex:0 0 auto" onclick="addMember()">+ เพิ่ม</button>
       </div>
       <div class="gender-seg" id="genderSeg">
-        <button data-g="male" onclick="setNewGender('male')">👦 ชาย</button>
-        <button data-g="female" onclick="setNewGender('female')">👧 หญิง</button>
-        <button data-g="any" class="on" onclick="setNewGender('any')">🌈 ไม่ระบุ</button>
+        <button data-g="male" data-i18n="male" onclick="setNewGender('male')">👦 ชาย</button>
+        <button data-g="female" data-i18n="female" onclick="setNewGender('female')">👧 หญิง</button>
+        <button data-g="any" class="on" data-i18n="any" onclick="setNewGender('any')">🌈 ไม่ระบุ</button>
       </div>
+
+      <div class="pay-box">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-top:14px">
+          <input type="checkbox" id="payBankChk" style="width:auto" onchange="togglePayField('bank')">
+          <span data-i18n="bankChk">🏦 เลขบัญชีธนาคาร</span>
+        </label>
+        <div id="payBankWrap" style="display:none">
+          <div><label data-i18n="lblBankNo">เลขบัญชี</label><input id="payBankNo" data-i18n-ph="bankNoPh" placeholder="xxx-x-xxxxx-x"></div>
+          <div><label data-i18n="lblBankName">ชื่อบัญชี</label><input id="payBankName" data-i18n-ph="nameNamePh" placeholder="ชื่อ-นามสกุล"></div>
+          <label data-i18n="lblBank">ธนาคาร</label>
+          <select id="payBankSel"></select>
+        </div>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-top:12px">
+          <input type="checkbox" id="payPpChk" style="width:auto" onchange="togglePayField('pp')">
+          <span data-i18n="ppChk">📱 พร้อมเพย์ (PromptPay)</span>
+        </label>
+        <div id="payPpWrap" style="display:none">
+          <div><label data-i18n="lblPpNo">เลขพร้อมเพย์</label><input id="payPpNo" data-i18n-ph="ppNoPh" placeholder="เบอร์โทร / เลขบัตร ปชช."></div>
+          <div><label data-i18n="lblPpName">ชื่อพร้อมเพย์</label><input id="payPpName" data-i18n-ph="nameNamePh" placeholder="ชื่อ-นามสกุล"></div>
+        </div>
+      </div>
+
       <div id="membersList" class="members-list"></div>
     </div>
 
     <div class="card">
       <div class="card-h"><span class="ic" style="background:rgba(236,72,153,.16)">🧾</span> <span id="formTitle">เพิ่มรายการจ่ายเงิน</span></div>
       <div id="editBanner" class="edit-banner">
-        <span>✏️ กำลังแก้ไขรายการ</span>
-        <button class="btn-soft btn-sm" onclick="cancelEdit()">ยกเลิก</button>
+        <span data-i18n="editingBill">✏️ กำลังแก้ไขรายการ</span>
+        <button class="btn-soft btn-sm" onclick="cancelEdit()" data-i18n="cancel">ยกเลิก</button>
       </div>
-      <label>รายการ / จ่ายค่าอะไร</label>
-      <input id="bTitle" placeholder="เช่น ค่าอาหารเย็น, ค่าที่พัก">
+      <label data-i18n="catLbl">รายการ / จ่ายค่าอะไร</label>
+      <select id="bCategory" onchange="onCategoryChange()">
+        <option value="">— เลือกรายการ —</option>
+        <option value="อาหารเช้า">🍳 อาหารเช้า</option>
+        <option value="อาหารกลางวัน">🍜 อาหารกลางวัน</option>
+        <option value="อาหารเย็น">🍲 อาหารเย็น</option>
+        <option value="คาเฟ่">☕ คาเฟ่</option>
+        <option value="น้ำมัน/ไฟฟ้า รถยนต์">⛽ น้ำมัน/ไฟฟ้า รถยนต์</option>
+        <option value="ทางด่วน">🛣️ ทางด่วน</option>
+        <option value="เครื่องดื่ม/ของหวาน/ขนมขบเคี้ยว">🍰 เครื่องดื่ม/ของหวาน/ขนมขบเคี้ยว</option>
+        <option value="ตั๋วเข้าสถานที่">🎟️ ตั๋วเข้าสถานที่</option>
+        <option value="ที่พัก">🏨 ที่พัก</option>
+        <option value="อื่นๆ">✨ อื่นๆ</option>
+      </select>
+      <div id="otherWrap" style="display:none">
+        <label data-i18n="specify">ระบุ</label>
+        <input id="bTitleOther" data-i18n-ph="specifyPh" placeholder="ระบุรายการ...">
+      </div>
       <div class="row">
-        <div><label>จำนวนเงิน (บาท)</label><input id="bAmount" type="text" inputmode="decimal" placeholder="0" oninput="formatMoneyInput(this)"></div>
-        <div><label>วันที่</label><input id="bDate" type="date"></div>
+        <div><label data-i18n="amountLbl">จำนวนเงิน (บาท)</label><input id="bAmount" type="text" inputmode="decimal" placeholder="0" oninput="formatMoneyInput(this)"></div>
+        <div><label data-i18n="dateLbl">วันที่</label><input id="bDate" type="date"></div>
       </div>
       <div class="row">
-        <div><label>คนจ่าย</label><select id="bPayer"></select></div>
-        <div><label>สถานที่</label><input id="bPlace" placeholder="เช่น ร้านหมูกระทะ"></div>
+        <div><label data-i18n="payerLbl">คนจ่าย</label><select id="bPayer"></select></div>
+        <div><label data-i18n="placeLbl">สถานที่</label><input id="bPlace" data-i18n-ph="placePh" placeholder="เช่น ร้านหมูกระทะ"></div>
       </div>
-      <label>รายละเอียดเพิ่มเติม (ไม่บังคับ)</label>
-      <textarea id="bNote" placeholder="โน้ตสั้นๆ..."></textarea>
-      <label>หารกับใครบ้าง &amp; วิธีหาร</label>
+      <label data-i18n="noteLbl">รายละเอียดเพิ่มเติม (ไม่บังคับ)</label>
+      <textarea id="bNote" data-i18n-ph="notePh" placeholder="โน้ตสั้นๆ..."></textarea>
+      <label data-i18n="splitLbl">หารกับใครบ้าง &amp; วิธีหาร</label>
       <div class="seg">
-        <button id="modeEqual" class="on" onclick="setSplitMode('equal')">⚖️ หารเท่ากัน</button>
-        <button id="modeCustom" onclick="setSplitMode('custom')">✏️ ระบุจำนวนเอง</button>
+        <button id="modeEqual" class="on" data-i18n="modeEqual" onclick="setSplitMode('equal')">⚖️ หารเท่ากัน</button>
+        <button id="modeCustom" data-i18n="modeCustom" onclick="setSplitMode('custom')">✏️ ระบุจำนวนเอง</button>
       </div>
       <div class="pick-head">
         <div class="hint" id="splitHint">ติ๊กเลือกคนที่ร่วมจ่าย ระบบจะหารเท่ากันให้อัตโนมัติ</div>
         <div style="display:flex;gap:7px;flex:0 0 auto">
-          <button class="btn-soft btn-sm" style="color:var(--r-green)" onclick="pickAll()">✓ ทุกคน</button>
-          <button class="btn-soft btn-sm" onclick="pickNone()">ล้าง</button>
+          <button class="btn-soft btn-sm" style="color:var(--r-green)" onclick="pickAll()" data-i18n="pickAll">✓ ทุกคน</button>
+          <button class="btn-soft btn-sm" onclick="pickNone()" data-i18n="pickNone">ล้าง</button>
         </div>
       </div>
       <div id="pickGrid" class="pick-grid"></div>
@@ -257,32 +329,62 @@
   <!-- RIGHT -->
   <div style="display:flex;flex-direction:column;gap:20px">
     <div class="card">
-      <div class="card-h"><span class="ic" style="background:rgba(16,185,129,.16)">💸</span> สรุปยอด &amp; การโอน
-        <span class="right"><button class="btn-grad btn-sm" onclick="openSummary()">📊 สรุปรายการ</button></span>
+      <div class="card-h"><span class="ic" style="background:rgba(16,185,129,.16)">💸</span> <span data-i18n="summaryTitle">สรุปยอด &amp; การโอน</span>
+        <span class="right"><button class="btn-grad btn-sm" onclick="openSummary()" data-i18n="summaryBtn">📊 สรุปรายการ</button></span>
       </div>
       <div id="summary"></div>
     </div>
     <div class="card">
-      <div class="card-h"><span class="ic" style="background:rgba(245,158,11,.18)">📋</span> รายการทั้งหมด</div>
+      <div class="card-h"><span class="ic" style="background:rgba(245,158,11,.18)">📋</span> <span data-i18n="allBillsTitle">รายการทั้งหมด</span></div>
       <div id="billsList" class="bills"></div>
     </div>
   </div>
 </div>
 
-<div class="foot">🌈 ข้อมูลเซฟอัตโนมัติในเครื่อง (localStorage) · กด 💾 Save ข้อมูล เพื่อโหลดไฟล์ .json ไปเก็บใน Google Drive · แก้ไขแล้วกด Save อีกครั้งเพื่อทับไฟล์เดิม แล้วกด 📂 เปิดไฟล์ เพื่อโหลดกลับ</div>
+<div class="foot" data-i18n="foot">🌈 ข้อมูลเซฟอัตโนมัติในเครื่อง (localStorage) · กด 💾 Save ข้อมูล เพื่อโหลดไฟล์ .json ไปเก็บใน Google Drive · แก้ไขแล้วกด Save อีกครั้งเพื่อทับไฟล์เดิม แล้วกด 📂 เปิดไฟล์ เพื่อโหลดกลับ</div>
+
+<!-- TOKEN MODAL -->
+<div class="overlay" id="tokenOverlay">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <span style="font-size:18px">🔑</span>
+      <span class="ttl" data-i18n="tokenTitle">รหัสซิงก์ข้ามเครื่อง (Token)</span>
+      <span class="x2" onclick="closeTokenModal()">✕</span>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--txt2);line-height:1.6;margin:0 0 12px" data-i18n="tokenInfo">ข้อมูลของคุณซิงก์ขึ้นคลาวด์อัตโนมัติด้วยรหัสนี้ — อยากใช้บนเครื่องอื่น ให้เอารหัสนี้ไปกรอกในเครื่องนั้น ⚠️ จดรหัสนี้เก็บไว้ให้ดี ถ้าหายจะกู้ข้อมูลไม่ได้</p>
+      <label data-i18n="yourToken">รหัสของคุณ (Token)</label>
+      <div class="row">
+        <input id="tokenView" readonly style="font-size:15px;font-weight:600;font-family:monospace">
+        <button class="btn-grad" style="flex:0 0 auto" onclick="copyToken()" data-i18n="copyToken">📋 คัดลอก</button>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
+      <label data-i18n="useToken">ใช้รหัสจากเครื่องอื่น (ดึงข้อมูลมา)</label>
+      <div class="row">
+        <input id="tokenInput" data-i18n-ph="tokenInputPh" placeholder="วางรหัสที่นี่" style="font-family:monospace">
+        <button class="btn-soft" style="flex:0 0 auto" onclick="applyTokenInput()" data-i18n="loadToken">โหลด</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5" data-i18n="tokenWarn">⚠️ การกรอกรหัสใหม่จะแทนที่ข้อมูลในเครื่องนี้ด้วยข้อมูลของรหัสนั้น</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-soft danger" onclick="regenToken()" data-i18n="newToken">🔄 สร้างรหัสใหม่</button>
+      <button class="btn-grad" onclick="closeTokenModal()" data-i18n="close">ปิด</button>
+    </div>
+  </div>
+</div>
 
 <!-- SUMMARY MODAL -->
 <div class="overlay" id="overlay">
   <div class="modal">
     <div class="modal-head">
       <span style="font-size:18px">📊</span>
-      <span class="ttl">สรุปรายการทริป</span>
+      <span class="ttl" data-i18n="modalTitle">สรุปรายการทริป</span>
       <span class="x2" onclick="closeSummary()">✕</span>
     </div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-foot">
-      <button class="btn-soft" onclick="closeSummary()">ปิด</button>
-      <button class="btn-grad" id="pngBtn" onclick="savePNG()">🖼️ บันทึกเป็นรูป PNG</button>
+      <button class="btn-soft" onclick="closeSummary()" data-i18n="close">ปิด</button>
+      <button class="btn-grad" id="pngBtn" onclick="savePNG()" data-i18n="savePng">🖼️ บันทึกเป็นรูป PNG</button>
     </div>
   </div>
 </div>
@@ -292,10 +394,33 @@
 <script>
 /* ============ STATE ============ */
 const KEY='tripSplit.v4';
-let state={tripName:'',members:[],bills:[],splitMode:'equal',picked:{},amts:{},editingId:null,theme:'light',newGender:'any'};
+let state={tripName:'',members:[],bills:[],splitMode:'equal',picked:{},amts:{},editingId:null,theme:'light',newGender:'any',lang:'th',editingMemberId:null,trips:[],currentTripId:null};
 function load(){try{const r=localStorage.getItem(KEY);if(r)Object.assign(state,JSON.parse(r));}catch(e){}
-  state.picked=state.picked||{};state.amts=state.amts||{};state.newGender=state.newGender||'any';}
-function save(){localStorage.setItem(KEY,JSON.stringify({tripName:state.tripName,members:state.members,bills:state.bills,theme:state.theme}));}
+  state.picked=state.picked||{};state.amts=state.amts||{};state.newGender=state.newGender||'any';state.lang=state.lang||'th';state.editingMemberId=null;
+  state.trips=Array.isArray(state.trips)?state.trips:[];
+  if(!state.trips.length){
+    // ย้ายข้อมูลเดิม (ทริปเดียว) เข้าระบบหลายทริป
+    state.trips=[{id:uid(),tripName:state.tripName||'',members:state.members||[],bills:state.bills||[],updatedAt:Date.now()}];
+  }
+  state.currentTripId=state.currentTripId&&state.trips.some(t=>t.id===state.currentTripId)?state.currentTripId:state.trips[0].id;
+  loadCurrentTrip();
+}
+function currentTrip(){return state.trips.find(t=>t.id===state.currentTripId)||state.trips[0];}
+function pruneEmptyTrips(){
+  if(state.trips.length<=1)return;
+  state.trips=state.trips.filter(function(tr){
+    const empty=(!tr.tripName||!tr.tripName.trim())&&(!tr.members||!tr.members.length)&&(!tr.bills||!tr.bills.length);
+    return !empty || tr.id===state.currentTripId;
+  });
+}
+function loadCurrentTrip(){const tr=currentTrip();
+  state.tripName=tr.tripName||'';state.members=tr.members||[];state.bills=tr.bills||[];
+  state.picked={};state.amts={};state.editingId=null;state.editingMemberId=null;}
+function syncCurrentToTrips(){const tr=currentTrip();if(!tr)return;
+  tr.tripName=state.tripName;tr.members=state.members;tr.bills=state.bills;tr.updatedAt=Date.now();}
+function save(){if(typeof syncCurrentToTrips==='function')syncCurrentToTrips();
+  localStorage.setItem(KEY,JSON.stringify({theme:state.theme,lang:state.lang,trips:state.trips,currentTripId:state.currentTripId}));
+  if(typeof pushToCloud==='function')pushToCloud(false);}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
 function uid(){return Math.random().toString(36).slice(2,9);}
 function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -316,24 +441,199 @@ function formatMoneyInput(el){
 }
 function parseMoney(el){return parseFloat((el.value||'').replace(/,/g,''))||0;}
 
+
+/* ============ I18N ============ */
+const I18N={
+  th:{
+    appSub:'หารค่าทริปกับเพื่อน · เซฟในเครื่องอัตโนมัติ',
+    saveData:'💾 Save ข้อมูล', openFile:'📂 เปิดไฟล์',
+    tripNameLbl:'🎒 ชื่อทริป', tripNamePh:'ระบุชื่อทริป', renameLbl:'✏️ แก้ชื่อทริปที่เลือก', newTripLbl:'➕ ทริปใหม่', newTripPrompt:'ตั้งชื่อทริปใหม่:', renamePrompt:'แก้ชื่อทริปเป็น:', needTripName:'พิมพ์ชื่อทริปใหม่ก่อน',
+    membersTitle:'สมาชิกในทริป', memNamePh:'ใส่ชื่อเพื่อน',
+    addBtn:'+ เพิ่ม', updateBtn:'✓ อัพเดท',
+    male:'👦 ชาย', female:'👧 หญิง', any:'🌈 ไม่ระบุ',
+    bankChk:'🏦 เลขบัญชีธนาคาร', ppChk:'📱 พร้อมเพย์ (PromptPay)',
+    lblBankNo:'เลขบัญชี', lblBankName:'ชื่อบัญชี', lblBank:'ธนาคาร', bankSelPh:'— เลือกธนาคาร —',
+    lblPpNo:'เลขพร้อมเพย์', lblPpName:'ชื่อพร้อมเพย์',
+    bankNoPh:'xxx-x-xxxxx-x', nameNamePh:'ชื่อ-นามสกุล', ppNoPh:'เบอร์โทร / เลขบัตร ปชช.',
+    editingMember:'✏️ กำลังแก้ไขสมาชิก', cancel:'ยกเลิก', clickEdit:'คลิกเพื่อแก้ไข',
+    formTitle:'เพิ่มรายการจ่ายเงิน', formTitleEdit:'แก้ไขรายการ',
+    editingBill:'✏️ กำลังแก้ไขรายการ',
+    catLbl:'รายการ / จ่ายค่าอะไร', catPh:'— เลือกรายการ —',
+    cat_breakfast:'🍳 อาหารเช้า', cat_lunch:'🍜 อาหารกลางวัน', cat_dinner:'🍲 อาหารเย็น',
+    cat_cafe:'☕ คาเฟ่', cat_fuel:'⛽ น้ำมัน/ไฟฟ้า รถยนต์', cat_toll:'🛣️ ทางด่วน',
+    cat_snack:'🍰 เครื่องดื่ม/ของหวาน/ขนมขบเคี้ยว', cat_ticket:'🎟️ ตั๋วเข้าสถานที่',
+    cat_stay:'🏨 ที่พัก', cat_other:'✨ อื่นๆ',
+    specify:'ระบุ', specifyPh:'ระบุรายการ...',
+    amountLbl:'จำนวนเงิน (บาท)', dateLbl:'วันที่', payerLbl:'คนจ่าย',
+    placeLbl:'สถานที่', placePh:'เช่น ร้านหมูกระทะ',
+    noteLbl:'รายละเอียดเพิ่มเติม (ไม่บังคับ)', notePh:'โน้ตสั้นๆ...',
+    splitLbl:'หารกับใครบ้าง & วิธีหาร', modeEqual:'⚖️ หารเท่ากัน', modeCustom:'✏️ ระบุจำนวนเอง',
+    hintEqual:'ติ๊กเลือกคนที่ร่วมจ่าย ระบบจะหารเท่ากันให้อัตโนมัติ',
+    hintCustom:'ติ๊กเลือกคน แล้วใส่ยอดที่แต่ละคนต้องจ่าย (รวมต้องเท่ายอดบิล)',
+    pickAll:'✓ ทุกคน', pickNone:'ล้าง',
+    saveBill:'+ บันทึกรายการนี้', saveBillEdit:'💾 บันทึกการแก้ไข',
+    summaryTitle:'สรุปยอด & การโอน', summaryBtn:'📊 สรุปรายการ',
+    allBillsTitle:'รายการทั้งหมด',
+    foot:'🌈 ข้อมูลเซฟอัตโนมัติในเครื่อง (localStorage) · กด 💾 Save ข้อมูล เพื่อโหลดไฟล์ .json ไปเก็บใน Google Drive · แก้ไขแล้วกด Save อีกครั้งเพื่อทับไฟล์เดิม แล้วกด 📂 เปิดไฟล์ เพื่อโหลดกลับ',
+    modalTitle:'สรุปรายการทริป', close:'ปิด', savePng:'🖼️ บันทึกเป็นรูป PNG',
+    /* dynamic */
+    emptyMembers:'ยังไม่มีสมาชิก — เลือกเพศแล้วใส่ชื่อเพื่อนด้านบน 👆',
+    emptyPick:'เพิ่มสมาชิกก่อน แล้วค่อยเลือกคนหาร',
+    emptyBills:'ยังไม่มีรายการ — เพิ่มทางซ้าย 👈',
+    emptySummary:'ยังไม่มีข้อมูล — เพิ่มสมาชิกและรายการ<br>แล้วระบบจะคำนวณให้อัตโนมัติ ✨',
+    totalTrip:'ยอดรวมทั้งทริป', ppl:'คน', items:'รายการ', transfers:'โอน', times:'ครั้ง',
+    avgPerPerson:'เฉลี่ย/คน', timesTransfer:'ครั้งที่โอน',
+    whoToWho:'💸 ใครโอนให้ใคร (โอนน้อยที่สุด)', allClear:'ทุกคนเคลียร์กันหมดแล้ว 🎉',
+    transferTo:'โอนเข้า:', netEach:'📊 ยอดสุทธิแต่ละคน',
+    getBack:'ได้คืน', payOut:'จ่าย',
+    capTitle:'🌈 สรุปค่าใช้จ่าย', ourTrip:'ทริปของเรา',
+    whoTransfer:'💸 ใครต้องโอนให้ใคร', payer:'คนจ่าย', receiver:'คนรับ', money:'เงิน',
+    moved:'รวมเงินที่หมุนเวียน',
+    perPerson:'📊 สรุปแต่ละคน',
+    colPerson:'คน', colPaid:'จ่ายไป', colOwed:'ต้องจ่าย', colNet:'สรุป',
+    legendGet:'🟢 สีเขียว = ได้เงินคืน', legendPay:'🔴 สีแดง = ต้องจ่ายเพิ่ม',
+    newTrip:'+ ทริปใหม่', tripSwitchSave:(n)=>`บันทึกทริป "${n}" ก่อนสลับไหม?`, newTripName:'ทริปใหม่', confirmDeleteTrip:(n)=>`ลบทริป "${n}"? (ลบถาวร กู้ไม่ได้)`, tripDeleted:'ลบทริปแล้ว', cantDeleteLast:'ต้องมีอย่างน้อย 1 ทริป',
+    syncing:'⏳ กำลังซิงก์...', synced:'☁️ ซิงก์แล้ว', cloudPulled:'โหลดข้อมูลจากคลาวด์แล้ว ☁️',
+    tokenTitle:'รหัสซิงก์ข้ามเครื่อง (Token)', tokenInfo:'ข้อมูลของคุณซิงก์ขึ้นคลาวด์อัตโนมัติด้วยรหัสนี้ — อยากใช้บนเครื่องอื่น ให้เอารหัสนี้ไปกรอกในเครื่องนั้น ⚠️ จดรหัสนี้เก็บไว้ให้ดี ถ้าหายจะกู้ข้อมูลไม่ได้', yourToken:'รหัสของคุณ (Token)', copyToken:'📋 คัดลอก', useToken:'ใช้รหัสจากเครื่องอื่น (ดึงข้อมูลมา)', tokenInputPh:'วางรหัสที่นี่', loadToken:'โหลด', tokenWarn:'⚠️ การกรอกรหัสใหม่จะแทนที่ข้อมูลในเครื่องนี้ด้วยข้อมูลของรหัสนั้น', newToken:'🔄 สร้างรหัสใหม่', needToken:'วางรหัสก่อน', confirmUseToken:'ใช้รหัสนี้แทน? ข้อมูลในเครื่องจะถูกแทนที่', tokenSwitched:'เปลี่ยนรหัสแล้ว ดึงข้อมูล...', confirmNewToken:'สร้างรหัสใหม่? (ข้อมูลปัจจุบันจะผูกกับรหัสใหม่ ส่วนรหัสเก่ายังอยู่บนคลาวด์)', tokenNew:'สร้างรหัสใหม่แล้ว 🔑',
+    rowGet:'ได้คืน', rowPay:'ต้องจ่าย', rowSettled:'เคลียร์แล้ว',
+    payChannels:'💳 ช่องทางการโอนเงิน', colWho:'คน', colChannel:'ช่องทางรับเงิน',
+    madeWith:'🌈 สร้างด้วย Trip Split',
+    bankWord:'ธนาคาร', ppWord:'พร้อมเพย์', copy:'คัดลอก',
+    /* toasts/confirms */
+    copied:'คัดลอกแล้ว ✅', dupName:'มีชื่อนี้แล้ว', memUpdated:'อัพเดทสมาชิกแล้ว ✅',
+    addMemFirst:'เพิ่มสมาชิกก่อน', needCat:'เลือก/ระบุรายการ', needAmt:'ใส่จำนวนเงิน',
+    needPayer:'เลือกคนจ่าย', needPick:'เลือกคนที่ร่วมหารอย่างน้อย 1 คน',
+    billSaved:'บันทึกรายการแล้ว ✅', billEdited:'แก้ไขแล้ว ✅',
+    cancelEdit:'ยกเลิกการแก้ไข', noData:'ยังไม่มีข้อมูลให้บันทึก',
+    dataSaved:'บันทึกไฟล์ข้อมูลแล้ว 💾', imported:'Import สำเร็จ ✅', badFile:'ไฟล์ไม่ถูกต้อง',
+    cleared:'ล้างแล้ว', noBillSummary:'ยังไม่มีรายการให้สรุป',
+    pngMaking:'⏳ กำลังสร้างรูป...', pngSaved:'บันทึกรูปแล้ว 🖼️', pngFail:'สร้างรูปไม่สำเร็จ', noContent:'ไม่พบเนื้อหา',
+    confirmRemoveMem:(n)=>`"${n}" มีอยู่ในบางรายการ ลบสมาชิก? (รายการเดิมยังคงไว้)`,
+    confirmRemoveBill:'ลบรายการนี้?',
+    confirmReset:'ล้างข้อมูลทั้งหมด? (กู้คืนไม่ได้ — แนะนำ Export ก่อน)',
+    confirmMismatch:(tot,amt,diff)=>`ยอดที่ระบุรวม = ${tot} แต่ยอดบิล = ${amt} (ต่างกัน ${diff})\nบันทึกต่อไหม?`,
+    pngName:'-สรุป', equalShort:'⚖️ หารเท่ากัน', customShort:'✏️ ระบุเอง',
+    paidWord:'จ่าย', dateWord:'📅', placeIco:'📍', noteIco:'📝'
+  },
+  en:{
+    appSub:'Split trip costs with friends · auto-saved locally',
+    saveData:'💾 Save', openFile:'📂 Open',
+    tripNameLbl:'🎒 Trip name', tripNamePh:'Enter trip name', renameLbl:'✏️ Rename selected trip', newTripLbl:'➕ New trip', newTripPrompt:'Name the new trip:', renamePrompt:'Rename trip to:', needTripName:'Type a name for the new trip first',
+    membersTitle:'Trip members', memNamePh:'Enter friend\'s name',
+    addBtn:'+ Add', updateBtn:'✓ Update',
+    male:'👦 Male', female:'👧 Female', any:'🌈 Unspecified',
+    bankChk:'🏦 Bank account', ppChk:'📱 PromptPay',
+    lblBankNo:'Account number', lblBankName:'Account name', lblBank:'Bank', bankSelPh:'— Select bank —',
+    lblPpNo:'PromptPay ID', lblPpName:'PromptPay name',
+    bankNoPh:'xxx-x-xxxxx-x', nameNamePh:'Full name', ppNoPh:'Phone / National ID',
+    editingMember:'✏️ Editing member', cancel:'Cancel', clickEdit:'Click to edit',
+    formTitle:'Add an expense', formTitleEdit:'Edit expense',
+    editingBill:'✏️ Editing expense',
+    catLbl:'Item / what did you pay for', catPh:'— Select item —',
+    cat_breakfast:'🍳 Breakfast', cat_lunch:'🍜 Lunch', cat_dinner:'🍲 Dinner',
+    cat_cafe:'☕ Cafe', cat_fuel:'⛽ Fuel/EV charging', cat_toll:'🛣️ Tolls',
+    cat_snack:'🍰 Drinks/Desserts/Snacks', cat_ticket:'🎟️ Entrance tickets',
+    cat_stay:'🏨 Accommodation', cat_other:'✨ Other',
+    specify:'Specify', specifyPh:'Specify item...',
+    amountLbl:'Amount (THB)', dateLbl:'Date', payerLbl:'Paid by',
+    placeLbl:'Place', placePh:'e.g. BBQ restaurant',
+    noteLbl:'Note (optional)', notePh:'Short note...',
+    splitLbl:'Split with whom & how', modeEqual:'⚖️ Split equally', modeCustom:'✏️ Custom amounts',
+    hintEqual:'Tick the people sharing this; it splits equally automatically.',
+    hintCustom:'Tick people, then enter each amount (must equal the bill total).',
+    pickAll:'✓ Everyone', pickNone:'Clear',
+    saveBill:'+ Save this item', saveBillEdit:'💾 Save changes',
+    summaryTitle:'Balances & transfers', summaryBtn:'📊 Summary',
+    allBillsTitle:'All items',
+    foot:'🌈 Data auto-saved locally (localStorage) · Tap 💾 Save to download a .json to keep in Google Drive · After editing, Save again to overwrite, then 📂 Open to load it back',
+    modalTitle:'Trip summary', close:'Close', savePng:'🖼️ Save as PNG',
+    emptyMembers:'No members yet — pick a gender and add a friend above 👆',
+    emptyPick:'Add members first, then choose who shares.',
+    emptyBills:'No items yet — add on the left 👈',
+    emptySummary:'No data yet — add members and items<br>and it calculates automatically ✨',
+    totalTrip:'Total trip cost', ppl:'people', items:'items', transfers:'transfers', times:'',
+    avgPerPerson:'avg/person', timesTransfer:'transfers',
+    whoToWho:'💸 Who pays whom (fewest transfers)', allClear:'Everyone is settled up 🎉',
+    transferTo:'Transfer to:', netEach:'📊 Net per person',
+    getBack:'gets back', payOut:'pays',
+    capTitle:'🌈 Expense summary', ourTrip:'Our trip',
+    whoTransfer:'💸 Who pays whom', payer:'From', receiver:'To', money:'Amount',
+    moved:'Total money moved',
+    perPerson:'📊 Per-person summary',
+    colPerson:'Person', colPaid:'Paid', colOwed:'Owed', colNet:'Net',
+    legendGet:'🟢 Green = gets money back', legendPay:'🔴 Red = needs to pay more',
+    newTrip:'+ New trip', tripSwitchSave:(n)=>`Save trip "${n}" before switching?`, newTripName:'New trip', confirmDeleteTrip:(n)=>`Delete trip "${n}"? (permanent)`, tripDeleted:'Trip deleted', cantDeleteLast:'Need at least 1 trip',
+    syncing:'⏳ Syncing...', synced:'☁️ Synced', cloudPulled:'Loaded from cloud ☁️',
+    tokenTitle:'Cross-device sync code (Token)', tokenInfo:'Your data auto-syncs to the cloud with this code. To use another device, enter this code there. ⚠️ Keep it safe — if lost, data cannot be recovered.', yourToken:'Your code (Token)', copyToken:'📋 Copy', useToken:'Use a code from another device (pull data)', tokenInputPh:'Paste code here', loadToken:'Load', tokenWarn:'⚠️ Entering a new code replaces this device\'s data with that code\'s data.', newToken:'🔄 New code', needToken:'Paste a code first', confirmUseToken:'Use this code? Local data will be replaced', tokenSwitched:'Code switched, pulling data...', confirmNewToken:'Generate a new code? (current data binds to new code; old code stays on cloud)', tokenNew:'New code generated 🔑',
+    rowGet:'gets back', rowPay:'to pay', rowSettled:'settled',
+    payChannels:'💳 Payment channels', colWho:'Person', colChannel:'Receiving channel',
+    madeWith:'🌈 Made with Trip Split',
+    bankWord:'Bank', ppWord:'PromptPay', copy:'Copy',
+    copied:'Copied ✅', dupName:'Name already exists', memUpdated:'Member updated ✅',
+    addMemFirst:'Add members first', needCat:'Select/specify an item', needAmt:'Enter an amount',
+    needPayer:'Select who paid', needPick:'Pick at least 1 person to share',
+    billSaved:'Item saved ✅', billEdited:'Saved ✅',
+    cancelEdit:'Edit canceled', noData:'No data to save yet',
+    dataSaved:'Data file saved 💾', imported:'Imported ✅', badFile:'Invalid file',
+    cleared:'Cleared', noBillSummary:'No items to summarize yet',
+    pngMaking:'⏳ Creating image...', pngSaved:'Image saved 🖼️', pngFail:'Failed to create image', noContent:'No content found',
+    confirmRemoveMem:(n)=>`"${n}" appears in some items. Remove member? (items are kept)`,
+    confirmRemoveBill:'Delete this item?',
+    confirmReset:'Clear all data? (cannot be undone — export first)',
+    confirmMismatch:(tot,amt,diff)=>`Entered total = ${tot} but bill = ${amt} (off by ${diff})\nSave anyway?`,
+    pngName:'-summary', equalShort:'⚖️ Equal', customShort:'✏️ Custom',
+    paidWord:'paid', dateWord:'📅', placeIco:'📍', noteIco:'📝'
+  }
+};
+function t(k){const d=I18N[state.lang]||I18N.th;return (d[k]!==undefined?d[k]:(I18N.th[k]!==undefined?I18N.th[k]:k));}
+function applyLang(){
+  document.documentElement.setAttribute('lang',state.lang);
+  var _bl=document.getElementById('brandLogo');if(_bl&&!_bl.src)_bl.src=LOGO_URI;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');const v=t(k);if(typeof v==='string')el.innerHTML=v;});
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{el.setAttribute('placeholder',t(el.getAttribute('data-i18n-ph')));});
+  /* dropdown options */
+  const cat=document.getElementById('bCategory');
+  if(cat){const cur=cat.value;cat.options[0].text=t('catPh');
+    [['อาหารเช้า','cat_breakfast'],['อาหารกลางวัน','cat_lunch'],['อาหารเย็น','cat_dinner'],['คาเฟ่','cat_cafe'],
+     ['น้ำมัน/ไฟฟ้า รถยนต์','cat_fuel'],['ทางด่วน','cat_toll'],['เครื่องดื่ม/ของหวาน/ขนมขบเคี้ยว','cat_snack'],
+     ['ตั๋วเข้าสถานที่','cat_ticket'],['ที่พัก','cat_stay'],['อื่นๆ','cat_other']].forEach(([val,key])=>{
+      const o=[...cat.options].find(x=>x.value===val);if(o)o.text=t(key);});
+    cat.value=cur;}
+  fillBankSelect();
+  /* lang button label */
+  const lb=document.getElementById('langBtn');if(lb)lb.textContent=state.lang==='th'?'TH':'EN';
+  if(typeof updateCloudBtn==='function')updateCloudBtn();
+  /* member add/update button reflects edit state */
+  const mb=document.getElementById('memBtn');if(mb)mb.textContent=state.editingMemberId?t('updateBtn'):t('addBtn');
+  /* form title + save button reflect edit state */
+  const ft=document.getElementById('formTitle');if(ft)ft.textContent=state.editingId?t('formTitleEdit'):t('formTitle');
+  const sb=document.getElementById('saveBtn');if(sb)sb.textContent=state.editingId?t('saveBillEdit'):t('saveBill');
+  setSplitMode(state.splitMode);
+  renderAll();
+}
+function toggleLang(){state.lang=state.lang==='th'?'en':'th';save();applyLang();}
+const LOGO_URI="data:image/png;base64,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";
+
 /* ============ THEME ============ */
 function applyTheme(){document.documentElement.setAttribute('data-theme',state.theme);
   document.getElementById('themeBtn').textContent=state.theme==='dark'?'☀️':'🌙';}
 function toggleTheme(){state.theme=state.theme==='dark'?'light':'dark';applyTheme();save();}
 
 /* ============ GENDER-AWARE ANIME PIXEL AVATAR ============ */
-const SKIN=['#ffe0c4','#ffd1a8','#f0b88a','#d99b6c','#b87a4e'];
+const SKIN=['#ffe8d6','#ffdcc4','#f7cdb0','#eebfa0','#e3ad8c'];
 const HAIR=['#3a2a4d','#5b3a23','#8a5a2a','#caa14a','#ec4899','#a06bff','#3fc6ff','#10b981','#f59e0b','#e8e8ef','#222230'];
 const SHIRT=['#a06bff','#ec4899','#f59e0b','#10b981','#3fc6ff','#ef4444','#fde047'];
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
 function rng(seed){let s=seed>>>0||1;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
 function shade(hex,f){const n=parseInt(hex.slice(1),16);let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
   r=Math.min(255,Math.round(r*f));g=Math.min(255,Math.round(g*f));b=Math.min(255,Math.round(b*f));return'#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);}
+const RAINBOW=['#ff4d4d','#f59e0b','#fde047','#10b981','#3fc6ff','#a06bff'];
 function avatarSVG(name,gender){
   gender=gender||'any';
+  const isRainbow=gender==='any';
   const h=hash((gender)+'|'+(name||'?')),r=rng(h);
   const skin=SKIN[Math.floor(r()*SKIN.length)];
-  const hair=HAIR[Math.floor(r()*HAIR.length)];
+  let hair=HAIR[Math.floor(r()*HAIR.length)];
   const shirt=SHIRT[h%SHIRT.length];
   const hairDark=shade(hair,.72), shirtDark=shade(shirt,.8);
   const eyeCol=['#3a2a4d','#5b3a23','#7c3aed','#0e7490','#166534'][Math.floor(r()*5)];
@@ -343,7 +643,12 @@ function avatarSVG(name,gender){
   else if(gender==='male') style=[0,2][Math.floor(r()*2)];
   else style=Math.floor(r()*5);
   const blush=r()>0.3;
-  const P=[];const R=(x,y,w,hh,c)=>P.push(`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${c}"/>`);
+  const hairDark0=shade(hair,.72);
+  const P=[];const R=(x,y,w,hh,c)=>{
+    let col=c;
+    if(isRainbow&&(c===hair||c===hairDark0)){col=RAINBOW[((x%RAINBOW.length)+RAINBOW.length)%RAINBOW.length];if(c===hairDark0)col=shade(col,.78);}
+    P.push(`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${col}"/>`);
+  };
   R(4,4,8,7,skin);R(4,4,8,1,shade(skin,.94));R(3,7,1,2,skin);R(12,7,1,2,skin);
   R(3,2,10,3,hair);R(3,2,1,6,hair);R(12,2,1,6,hair);
   if(style===1){R(3,8,1,4,hair);R(12,8,1,4,hair);}           // long
@@ -362,49 +667,167 @@ function avatarSVG(name,gender){
   R(7,9,2,1,'#d4537e');
   R(3,11,10,4,shirt);R(2,12,1,3,shirt);R(13,12,1,3,shirt);
   R(3,11,10,1,shade(shirt,1.12));R(7,12,2,3,shirtDark);R(7,10,2,1,shade(skin,.9));
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect width="16" height="16" rx="3" fill="${shade(shirt,.35)}"/>${P.join('')}</svg>`;
+  let bg;
+  if(isRainbow){
+    const gid='rb'+(h>>>0);
+    bg=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff4d4d"/><stop offset="20%" stop-color="#f59e0b"/><stop offset="40%" stop-color="#fde047"/>
+      <stop offset="60%" stop-color="#10b981"/><stop offset="80%" stop-color="#3fc6ff"/><stop offset="100%" stop-color="#a06bff"/>
+    </linearGradient></defs><rect width="16" height="16" rx="3" fill="url(#${gid})"/>`;
+  }else{
+    bg=`<rect width="16" height="16" rx="3" fill="${shade(shirt,.35)}"/>`;
+  }
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">${bg}${P.join('')}</svg>`;
   return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
 }
 function genderOf(name){const m=state.members.find(x=>x.name===name);return m?m.gender:'any';}
 function aviImg(name,cls){return `<img class="avatar ${cls||'av-sm'}" src="${avatarSVG(name,genderOf(name))}" alt="">`;}
 
+/* ============ BANKS / PAYMENT ============ */
+const BANKS=[
+  'ธนาคารกรุงเทพ (Bangkok Bank)',
+  'ธนาคารกสิกรไทย (Kasikornbank)',
+  'ธนาคารกรุงไทย (Krungthai Bank)',
+  'ธนาคารไทยพาณิชย์ (Siam Commercial Bank)',
+  'ธนาคารกรุงศรีอยุธยา (Bank of Ayudhya)',
+  'ธนาคารทหารไทยธนชาต (ttb)',
+  'ธนาคารยูโอบี (UOB)',
+  'ธนาคารเกียรตินาคินภัทร (KKP)',
+  'ธนาคารทิสโก้ (TISCO)',
+  'ธนาคารซีไอเอ็มบีไทย (CIMB Thai)',
+  'ธนาคารไทยเครดิต (Thai Credit)',
+  'ธนาคารแลนด์ แอนด์ เฮ้าส์ (LH Bank)',
+  'ธนาคารไอซีบีซี (ไทย) (ICBC Thai)',
+  'ธนาคารออมสิน (GSB)',
+  'ธนาคารอาคารสงเคราะห์ (GH Bank)',
+  'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (BAAC)',
+  'ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย (EXIM Bank)',
+  'ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย (SME D Bank)',
+  'ธนาคารอิสลามแห่งประเทศไทย (ibank)',
+  'ธนาคารเอชเอสบีซี (HSBC)',
+  'ธนาคารซิตี้แบงก์ (Citibank)',
+  'ธนาคารมิตซูบิชิ ยูเอฟเจ (MUFG Bank)',
+  'ธนาคารซูมิโตโม มิตซุย แบงกิ้ง คอร์ปอเรชั่น (SMBC)',
+  'ธนาคารแห่งประเทศจีน (Bank of China)',
+  'ธนาคารดอยซ์แบงก์ (Deutsche Bank)'
+];
+function fillBankSelect(){const s=document.getElementById('payBankSel');
+  s.innerHTML='<option value="">— เลือกธนาคาร —</option>'+BANKS.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');}
+function togglePayField(which){
+  if(which==='bank')document.getElementById('payBankWrap').style.display=document.getElementById('payBankChk').checked?'block':'none';
+  if(which==='pp')document.getElementById('payPpWrap').style.display=document.getElementById('payPpChk').checked?'block':'none';
+}
+function getPayFromForm(){
+  const pay={};
+  if(document.getElementById('payBankChk').checked){
+    pay.bank={no:document.getElementById('payBankNo').value.trim(),name:document.getElementById('payBankName').value.trim(),bank:document.getElementById('payBankSel').value};
+  }
+  if(document.getElementById('payPpChk').checked){
+    pay.promptpay={no:document.getElementById('payPpNo').value.trim(),name:document.getElementById('payPpName').value.trim()};
+  }
+  return pay;
+}
+function resetPayForm(){
+  document.getElementById('payBankChk').checked=false;
+  document.getElementById('payPpChk').checked=false;
+  ['payBankNo','payBankName','payPpNo','payPpName'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('payBankSel').value='';
+  togglePayField('bank');togglePayField('pp');
+}
+function copyText(v){navigator.clipboard&&navigator.clipboard.writeText(v).then(()=>toast(t('copied'))).catch(()=>{});}
+function payOf(name){const m=state.members.find(x=>x.name===name);return m&&m.pay?m.pay:null;}
+function payLines(pay,withCopy){
+  if(!pay)return '';
+  let out=[];
+  if(pay.bank&&(pay.bank.no||pay.bank.bank)){
+    const bkShort=(pay.bank.bank||'').replace(/\s*\(.*\)/,'');
+    out.push(`<span class="bk"><span class="bk-acc">🏦 ${esc(bkShort||t('bankWord'))} ${esc(pay.bank.no||'')}${withCopy&&pay.bank.no?` <span class="copy-mini" onclick="copyText('${esc(pay.bank.no)}')">${t('copy')}</span>`:''}</span>${pay.bank.name?`<span class="bk-nm">${esc(pay.bank.name)}</span>`:''}</span>`);
+  }
+  if(pay.promptpay&&pay.promptpay.no){
+    out.push(`<span class="bk"><span class="bk-acc">📱 ${t('ppWord')} ${esc(pay.promptpay.no)}${withCopy?` <span class="copy-mini" onclick="copyText('${esc(pay.promptpay.no)}')">${t('copy')}</span>`:''}</span>${pay.promptpay.name?`<span class="bk-nm">${esc(pay.promptpay.name)}</span>`:''}</span>`);
+  }
+  return out.join('');
+}
+
 /* ============ MEMBERS ============ */
 function setNewGender(g){state.newGender=g;
   document.querySelectorAll('#genderSeg button').forEach(b=>b.classList.toggle('on',b.dataset.g===g));}
 function addMember(){const i=document.getElementById('memName'),v=i.value.trim();if(!v)return;
-  if(state.members.some(m=>m.name===v)){toast('มีชื่อนี้แล้ว');return;}
-  state.members.push({id:uid(),name:v,gender:state.newGender});i.value='';save();renderAll();}
+  if(state.editingMemberId){return updateMember();}
+  if(state.members.some(m=>m.name===v)){toast(t('dupName'));return;}
+  state.members.push({id:uid(),name:v,gender:state.newGender,pay:getPayFromForm()});
+  i.value='';resetPayForm();save();renderAll();}
+function editMember(id){const m=state.members.find(x=>x.id===id);if(!m)return;
+  state.editingMemberId=id;
+  document.getElementById('memName').value=m.name;
+  setNewGender(m.gender||'any');
+  const p=m.pay||{};
+  document.getElementById('payBankChk').checked=!!(p.bank&&(p.bank.no||p.bank.bank));togglePayField('bank');
+  document.getElementById('payBankNo').value=p.bank?(p.bank.no||''):'';
+  document.getElementById('payBankName').value=p.bank?(p.bank.name||''):'';
+  document.getElementById('payBankSel').value=p.bank?(p.bank.bank||''):'';
+  document.getElementById('payPpChk').checked=!!(p.promptpay&&p.promptpay.no);togglePayField('pp');
+  document.getElementById('payPpNo').value=p.promptpay?(p.promptpay.no||''):'';
+  document.getElementById('payPpName').value=p.promptpay?(p.promptpay.name||''):'';
+  document.getElementById('memBtn').textContent=t('updateBtn');
+  document.getElementById('memEditBanner').classList.add('show');
+  document.getElementById('memName').scrollIntoView&&document.getElementById('memName').scrollIntoView({behavior:'smooth',block:'center'});
+  renderMembers();
+}
+function updateMember(){const v=document.getElementById('memName').value.trim();if(!v)return;
+  const m=state.members.find(x=>x.id===state.editingMemberId);if(!m)return;
+  if(state.members.some(x=>x.name===v&&x.id!==m.id)){toast(t('dupName'));return;}
+  const oldName=m.name;
+  m.name=v;m.gender=state.newGender;m.pay=getPayFromForm();
+  if(oldName!==v){ // keep picks/amounts and bills consistent
+    if(state.picked[oldName]!==undefined){state.picked[v]=state.picked[oldName];delete state.picked[oldName];}
+    if(state.amts[oldName]!==undefined){state.amts[v]=state.amts[oldName];delete state.amts[oldName];}
+    state.bills.forEach(b=>{if(b.payer===oldName)b.payer=v;
+      if(b.shares&&b.shares[oldName]!==undefined){b.shares[v]=b.shares[oldName];delete b.shares[oldName];}});
+  }
+  cancelEditMember();save();renderAll();toast(t('memUpdated'));
+}
+function cancelEditMember(){state.editingMemberId=null;
+  document.getElementById('memName').value='';resetPayForm();setNewGender('any');
+  document.getElementById('memBtn').textContent=t('addBtn');
+  document.getElementById('memEditBanner').classList.remove('show');
+  renderMembers();
+}
 function removeMember(id){const m=state.members.find(x=>x.id===id);
   if(state.bills.some(b=>b.payer===m.name||b.shares[m.name]!==undefined)){
-    if(!confirm(`"${m.name}" มีอยู่ในบางรายการ ลบสมาชิก? (รายการเดิมยังคงไว้)`))return;}
+    if(!confirm(t('confirmRemoveMem')(m.name)))return;}
   state.members=state.members.filter(x=>x.id!==id);delete state.picked[m.name];delete state.amts[m.name];
   save();renderAll();}
 function renderMembers(){const el=document.getElementById('membersList');
-  if(!state.members.length){el.innerHTML='<div class="empty">ยังไม่มีสมาชิก — เลือกเพศแล้วใส่ชื่อเพื่อนด้านบน 👆</div>';return;}
+  if(!state.members.length){el.innerHTML=`<div class="empty">${t('emptyMembers')}</div>`;return;}
   el.innerHTML=state.members.map(m=>{const g=m.gender==='male'?'👦':m.gender==='female'?'👧':'';
-    return `<span class="chip pop">${aviImg(m.name,'av-sm')}<span>${esc(m.name)}${g?' '+g:''}</span>
-    <span class="x" onclick="removeMember('${m.id}')">✕</span></span>`;}).join('');}
+    const pl=payLines(m.pay,false);
+    return `<span class="chip pop" style="${pl?'align-items:flex-start;flex-direction:column;gap:4px':''}">
+      <span style="display:inline-flex;align-items:center;gap:8px;width:100%">
+        ${aviImg(m.name,'av-sm')}<span style="flex:1;cursor:pointer" title="${t('clickEdit')}" onclick="editMember('${m.id}')">${esc(m.name)}${g?' '+g:''}</span>
+        <span class="x" onclick="removeMember('${m.id}')">✕</span>
+      </span>
+      ${pl?`<span class="pay-info">${pl}</span>`:''}
+    </span>`;}).join('');}
 
 /* ============ PICKERS ============ */
 function setSplitMode(m){state.splitMode=m;
   document.getElementById('modeEqual').classList.toggle('on',m==='equal');
   document.getElementById('modeCustom').classList.toggle('on',m==='custom');
-  document.getElementById('splitHint').textContent=m==='equal'
-    ?'ติ๊กเลือกคนที่ร่วมจ่าย ระบบจะหารเท่ากันให้อัตโนมัติ'
-    :'ติ๊กเลือกคน แล้วใส่ยอดที่แต่ละคนต้องจ่าย (รวมต้องเท่ายอดบิล)';
+  document.getElementById('splitHint').textContent=m==='equal'?t('hintEqual'):t('hintCustom');
   renderPickGrid();}
 function togglePick(name){state.picked[name]=!state.picked[name];renderPickGrid();}
 function pickAll(){state.members.forEach(m=>state.picked[m.name]=true);renderPickGrid();}
 function pickNone(){state.picked={};renderPickGrid();}
 function renderPickGrid(){const g=document.getElementById('pickGrid');
-  if(!state.members.length){g.innerHTML='<div class="empty">เพิ่มสมาชิกก่อน แล้วค่อยเลือกคนหาร</div>';return;}
+  if(!state.members.length){g.innerHTML=`<div class="empty">${t('emptyPick')}</div>`;return;}
   const custom=state.splitMode==='custom';
   g.innerHTML=state.members.map(m=>{const on=state.picked[m.name];
     return `<div class="pick ${on?'on':''} ${custom?'custom':''}" onclick="if(event.target.tagName!=='INPUT')togglePick('${esc(m.name)}')">
       <span class="check">✓</span>${aviImg(m.name,'av-sm')}<span class="nm">${esc(m.name)}</span>
-      <input class="amt" type="number" min="0" step="0.01" placeholder="0"
-        value="${state.amts[m.name]!=null?state.amts[m.name]:''}"
-        oninput="state.amts['${esc(m.name)}']=this.value">
+      <input class="amt" type="text" inputmode="decimal" placeholder="0"
+        value="${state.amts[m.name]!=null&&state.amts[m.name]!==''?Number((state.amts[m.name]+'').replace(/,/g,'')).toLocaleString('en-US'):''}"
+        oninput="formatMoneyInput(this);state.amts['${esc(m.name)}']=this.value.replace(/,/g,'')">
     </div>`;}).join('');}
 function renderPayerSelect(){const s=document.getElementById('bPayer'),cur=s.value;
   s.innerHTML=state.members.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');
@@ -415,62 +838,79 @@ function equalShares(amount,parts){const n=parts.length,base=Math.floor((amount*
   let rem=Math.round((amount-tot)*100),i=0;
   while(rem>0){sh[parts[i%n]]=Math.round((sh[parts[i%n]]+0.01)*100)/100;rem--;i++;}return sh;}
 
+/* ============ CATEGORY DROPDOWN ============ */
+function onCategoryChange(){
+  const cat=document.getElementById('bCategory').value;
+  document.getElementById('otherWrap').style.display=cat==='อื่นๆ'?'block':'none';
+}
+function getBillTitle(){
+  const cat=document.getElementById('bCategory').value;
+  if(cat==='อื่นๆ')return document.getElementById('bTitleOther').value.trim();
+  return cat;
+}
+
 /* ============ SAVE / EDIT BILL ============ */
 function saveBill(){
-  const title=document.getElementById('bTitle').value.trim();
+  const title=getBillTitle();
   const amount=parseMoney(document.getElementById('bAmount'));
   const payer=document.getElementById('bPayer').value;
   const date=document.getElementById('bDate').value;
   const place=document.getElementById('bPlace').value.trim();
   const note=document.getElementById('bNote').value.trim();
-  if(!state.members.length){toast('เพิ่มสมาชิกก่อน');return;}
-  if(!title){toast('ใส่ชื่อรายการ');return;}
-  if(!(amount>0)){toast('ใส่จำนวนเงิน');return;}
-  if(!payer){toast('เลือกคนจ่าย');return;}
+  if(!state.members.length){toast(t('addMemFirst'));return;}
+  if(!title){toast(t('needCat'));return;}
+  if(!(amount>0)){toast(t('needAmt'));return;}
+  if(!payer){toast(t('needPayer'));return;}
   const parts=state.members.filter(m=>state.picked[m.name]).map(m=>m.name);
-  if(!parts.length){toast('เลือกคนที่ร่วมหารอย่างน้อย 1 คน');return;}
+  if(!parts.length){toast(t('needPick'));return;}
   let shares={};
   if(state.splitMode==='equal'){shares=equalShares(amount,parts);}
   else{let tot=0;parts.forEach(n=>{const v=parseFloat(state.amts[n]);shares[n]=isNaN(v)?0:v;tot+=shares[n];});
-    if(Math.abs(tot-amount)>0.01){if(!confirm(`ยอดที่ระบุรวม = ${fmt(tot)} แต่ยอดบิล = ${fmt(amount)} (ต่างกัน ${fmt(Math.abs(tot-amount))})\nบันทึกต่อไหม?`))return;}}
+    if(Math.abs(tot-amount)>0.01){if(!confirm(t('confirmMismatch')(fmt(tot),fmt(amount),fmt(Math.abs(tot-amount)))))return;}}
   const data={title,amount,payer,date:date||new Date().toISOString().slice(0,10),place,note,mode:state.splitMode,shares};
-  if(state.editingId){const b=state.bills.find(x=>x.id===state.editingId);Object.assign(b,data);toast('แก้ไขแล้ว ✅');}
-  else{state.bills.push(Object.assign({id:uid()},data));toast('บันทึกรายการแล้ว ✅');}
+  if(state.editingId){const b=state.bills.find(x=>x.id===state.editingId);Object.assign(b,data);toast(t('billEdited'));}
+  else{state.bills.push(Object.assign({id:uid()},data));toast(t('billSaved'));}
   resetForm();save();renderAll();
 }
 function editBill(id){const b=state.bills.find(x=>x.id===id);if(!b)return;
   state.editingId=id;state.splitMode=b.mode;state.picked={};state.amts={};
   Object.entries(b.shares).forEach(([n,v])=>{state.picked[n]=true;state.amts[n]=v;});
-  document.getElementById('bTitle').value=b.title;
+  const catSel=document.getElementById('bCategory');
+  const known=[...catSel.options].some(o=>o.value===b.title&&o.value!=='อื่นๆ');
+  if(known){catSel.value=b.title;document.getElementById('bTitleOther').value='';}
+  else{catSel.value='อื่นๆ';document.getElementById('bTitleOther').value=b.title;}
+  onCategoryChange();
   document.getElementById('bAmount').value=b.amount.toLocaleString('en-US');
   document.getElementById('bDate').value=b.date;
   document.getElementById('bPlace').value=b.place||'';
   document.getElementById('bNote').value=b.note||'';
   setSplitMode(b.mode);renderPayerSelect();document.getElementById('bPayer').value=b.payer;
-  document.getElementById('formTitle').textContent='แก้ไขรายการ';
-  document.getElementById('saveBtn').textContent='💾 บันทึกการแก้ไข';
+  document.getElementById('formTitle').textContent=t('formTitleEdit');
+  document.getElementById('saveBtn').textContent=t('saveBillEdit');
   document.getElementById('editBanner').classList.add('show');
   renderBills();
-  document.getElementById('bTitle').scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById('bCategory').scrollIntoView&&document.getElementById('bCategory').scrollIntoView({behavior:'smooth',block:'center'});
 }
-function cancelEdit(){resetForm();renderBills();toast('ยกเลิกการแก้ไข');}
+function cancelEdit(){resetForm();renderBills();toast(t('cancelEdit'));}
 function resetForm(){
   state.editingId=null;state.picked={};state.amts={};
-  document.getElementById('bTitle').value='';
+  document.getElementById('bCategory').value='';
+  document.getElementById('bTitleOther').value='';
+  onCategoryChange();
   document.getElementById('bAmount').value='';
   document.getElementById('bPlace').value='';
   document.getElementById('bNote').value='';
-  document.getElementById('formTitle').textContent='เพิ่มรายการจ่ายเงิน';
-  document.getElementById('saveBtn').textContent='+ บันทึกรายการนี้';
+  document.getElementById('formTitle').textContent=t('formTitle');
+  document.getElementById('saveBtn').textContent=t('saveBill');
   document.getElementById('editBanner').classList.remove('show');
   renderPickGrid();
 }
-function removeBill(id){if(!confirm('ลบรายการนี้?'))return;
+function removeBill(id){if(!confirm(t('confirmRemoveBill')))return;
   if(state.editingId===id)resetForm();
   state.bills=state.bills.filter(b=>b.id!==id);save();renderAll();}
 
 function renderBills(){const el=document.getElementById('billsList');
-  if(!state.bills.length){el.innerHTML='<div class="empty">ยังไม่มีรายการ — เพิ่มทางซ้าย 👈</div>';return;}
+  if(!state.bills.length){el.innerHTML=`<div class="empty">${t('emptyBills')}</div>`;return;}
   const sorted=[...state.bills].sort((a,b)=>(a.date<b.date?1:-1));
   el.innerHTML=sorted.map(b=>`
     <div class="bill ${state.editingId===b.id?'editing':''}">
@@ -479,9 +919,9 @@ function renderBills(){const el=document.getElementById('billsList');
         <div style="min-width:0">
           <div class="bill-title">${esc(b.title)}</div>
           <div class="bill-meta">
-            <span>👤 ${esc(b.payer)} จ่าย</span><span>📅 ${esc(b.date)}</span>
+            <span>👤 ${esc(b.payer)} ${t('paidWord')}</span><span>📅 ${esc(b.date)}</span>
             ${b.place?`<span>📍 ${esc(b.place)}</span>`:''}
-            <span>${b.mode==='equal'?'⚖️ หารเท่ากัน':'✏️ ระบุเอง'}</span>
+            <span>${b.mode==='equal'?t('equalShort'):t('customShort')}</span>
           </div>
           ${b.note?`<div class="bill-meta">📝 ${esc(b.note)}</div>`:''}
         </div>
@@ -509,81 +949,97 @@ function settle(net){const cred=[],deb=[];
     tx.push({from:deb[di][0],to:cred[ci][0],amount:g/100});cred[ci][1]-=g;deb[di][1]-=g;
     if(cred[ci][1]===0)ci++;if(deb[di][1]===0)di++;}return tx;}
 function renderSummary(){const el=document.getElementById('summary');
-  if(!state.bills.length){el.innerHTML='<div class="empty">ยังไม่มีข้อมูล — เพิ่มสมาชิกและรายการ<br>แล้วระบบจะคำนวณให้อัตโนมัติ ✨</div>';return;}
+  if(!state.bills.length){el.innerHTML=`<div class="empty">${t('emptySummary')}</div>`;return;}
   const net=computeNet(),total=state.bills.reduce((s,b)=>s+b.amount,0),tx=settle(net);
   const avg=state.members.length?total/state.members.length:0;
   let html=`<div class="hero">
-    <div class="lbl">ยอดรวมทั้งทริป</div>
+    <div class="lbl">${t('totalTrip')}</div>
     <div class="amt">฿${fmt(total)}</div>
-    <div class="pills"><span class="pill">👥 ${state.members.length} คน</span><span class="pill">🧾 ${state.bills.length} รายการ</span><span class="pill">💸 โอน ${tx.length} ครั้ง</span></div>
+    <div class="pills"><span class="pill">👥 ${state.members.length} ${t('ppl')}</span><span class="pill">🧾 ${state.bills.length} ${t('items')}</span><span class="pill">💸 ${t('transfers')} ${tx.length} ${t('times')}</span></div>
   </div>`;
   html+=`<div class="stats">
-    <div class="stat"><div class="v">฿${fmt0(avg)}</div><div class="k">เฉลี่ย/คน</div></div>
-    <div class="stat"><div class="v">${state.bills.length}</div><div class="k">รายการ</div></div>
-    <div class="stat"><div class="v" style="color:var(--r-purple)">${tx.length}</div><div class="k">ครั้งที่โอน</div></div>
+    <div class="stat"><div class="v">฿${fmt0(avg)}</div><div class="k">${t('avgPerPerson')}</div></div>
+    <div class="stat"><div class="v">${state.bills.length}</div><div class="k">${t('items')}</div></div>
+    <div class="stat"><div class="v" style="color:var(--r-purple)">${tx.length}</div><div class="k">${t('timesTransfer')}</div></div>
   </div>`;
-  html+=`<div style="font-size:12px;color:var(--muted);margin:4px 0 9px;font-weight:600">💸 ใครโอนให้ใคร (โอนน้อยที่สุด)</div>`;
-  if(!tx.length)html+='<div class="empty">ทุกคนเคลียร์กันหมดแล้ว 🎉</div>';
-  else html+=tx.map(t=>`<div class="settle-row">
-      <span class="miniavi">${aviImg(t.from,'av-md')} ${esc(t.from)}</span>
-      <span class="arrow">→</span><span class="miniavi">${aviImg(t.to,'av-md')} ${esc(t.to)}</span>
-      <span class="settle-amt">฿${fmt(t.amount)}</span></div>`).join('');
-  html+=`<div style="font-size:12px;color:var(--muted);margin:16px 0 4px;font-weight:600">📊 ยอดสุทธิแต่ละคน</div>`;
+  html+=`<div style="font-size:12px;color:var(--muted);margin:4px 0 9px;font-weight:600">${t('whoToWho')}</div>`;
+  if(!tx.length)html+=`<div class="empty">${t('allClear')}</div>`;
+  else html+=tx.map(tr=>{const pl=payLines(payOf(tr.to),true);
+    return `<div class="settle-row" style="${pl?'flex-wrap:wrap':''}">
+      <span class="miniavi">${aviImg(tr.from,'av-md')} ${esc(tr.from)}</span>
+      <span class="arrow">→</span><span class="miniavi">${aviImg(tr.to,'av-md')} ${esc(tr.to)}</span>
+      <span class="settle-amt">฿${fmt(tr.amount)}</span>
+      ${pl?`<span class="pay-info" style="width:100%;padding-left:2px">${t('transferTo')} ${pl}</span>`:''}</div>`;}).join('');
+  html+=`<div style="font-size:12px;color:var(--muted);margin:16px 0 4px;font-weight:600">${t('netEach')}</div>`;
   html+=Object.entries(net).sort((a,b)=>b[1]-a[1]).map(([n,v])=>{const c=Math.round(v*100);
     const cls=c>0?'pos':c<0?'neg':'zero';
-    const lbl=c>0?`ได้คืน +฿${fmt(v)}`:c<0?`จ่าย -฿${fmt(-v)}`:'฿0.00';
+    const lbl=c>0?`${t('getBack')} +฿${fmt(v)}`:c<0?`${t('payOut')} -฿${fmt(-v)}`:'฿0.00';
     return `<div class="sum-row">${aviImg(n,'av-md')}<span>${esc(n)}</span><span class="${cls}">${lbl}</span></div>`;}).join('');
   el.innerHTML=html;}
 
 /* ============ SUMMARY MODAL ============ */
 function openSummary(){
-  if(!state.bills.length){toast('ยังไม่มีรายการให้สรุป');return;}
+  if(!state.bills.length){toast(t('noBillSummary'));return;}
   const net=computeNet(),total=state.bills.reduce((s,b)=>s+b.amount,0),tx=settle(net);
   const{paid,owed}=computePaidOwed();
-  const tripName=state.tripName||'ทริปของเรา';
-  const today=new Date().toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});
+  const tripName=state.tripName||t('ourTrip');
+  const today=new Date().toLocaleDateString(state.lang==='th'?'th-TH':'en-GB',{day:'numeric',month:'short',year:'numeric'});
   const moved=tx.reduce((s,t)=>s+t.amount,0);
-  let h=`<div id="capArea" style="background:var(--card);padding:2px">
+  let h=`<div id="capArea" style="background:var(--card);margin:-22px -22px 0;border-radius:0;overflow:hidden">
     <div class="cap-hero">
+      <img src="${LOGO_URI}" alt="ParitS" style="height:74px;width:auto;flex:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3))">
       <div>
-        <div class="t">🌈 สรุปค่าใช้จ่าย</div>
+        <div class="t">${t('capTitle')}</div>
         <div class="n">${esc(tripName)}</div>
-        <div class="meta">${state.members.length} คน · ${state.bills.length} รายการ · ${today}</div>
+        <div class="meta">${state.members.length} ${t('ppl')} · ${state.bills.length} ${t('items')} · ${today}</div>
       </div>
       <div style="text-align:right;margin-left:auto">
-        <div class="t">ยอดรวมทั้งทริป</div>
+        <div class="t">${t('totalTrip')}</div>
         <div class="a" style="margin:0">฿${fmt(total)}</div>
       </div>
     </div>
+    <div style="padding:22px">
     <div class="cap-cols">`;
   /* COLUMN 1: transfers */
-  h+=`<div><div class="tbl-title">💸 ใครต้องโอนให้ใคร <span style="color:var(--muted);font-weight:400">(${tx.length} ครั้ง)</span></div>`;
-  if(!tx.length){h+='<div class="empty">ทุกคนเคลียร์กันหมดแล้ว 🎉</div>';}
+  h+=`<div><div class="tbl-title">${t('whoTransfer')} <span style="color:var(--muted);font-weight:400">(${tx.length} ${t('times')})</span></div>`;
+  if(!tx.length){h+=`<div class="empty">${t('allClear')}</div>`;}
   else{
-    h+=`<table class="sum"><thead><tr><th>คนจ่าย</th><th></th><th>คนรับ</th><th class="ar">เงิน</th></tr></thead><tbody>`;
+    h+=`<table class="sum"><thead><tr><th>${t('payer')}</th><th></th><th>${t('receiver')}</th><th class="ar">${t('money')}</th></tr></thead><tbody>`;
     h+=tx.map(t=>`<tr>
       <td><span class="tcell">${aviImg(t.from,'av-sm')} ${esc(t.from)}</span></td>
       <td style="color:var(--r-purple);font-size:15px">→</td>
       <td><span class="tcell">${aviImg(t.to,'av-sm')} ${esc(t.to)}</span></td>
       <td class="ar" style="font-weight:700;color:var(--r-green)">฿${fmt(t.amount)}</td></tr>`).join('');
-    h+=`<tr class="tot"><td colspan="3">รวมเงินที่หมุนเวียน</td><td class="ar">฿${fmt(moved)}</td></tr>`;
+    h+=`<tr class="tot"><td colspan="3">${t('moved')}</td><td class="ar">฿${fmt(moved)}</td></tr>`;
     h+=`</tbody></table>`;
   }
   h+=`</div>`;
   /* COLUMN 2: per person */
-  h+=`<div><div class="tbl-title">📊 สรุปแต่ละคน</div>`;
-  h+=`<table class="sum"><thead><tr><th>คน</th><th class="ar">จ่ายจริง</th><th class="ar">ต้องจ่าย</th><th class="ar">สุทธิ</th></tr></thead><tbody>`;
+  h+=`<div><div class="tbl-title">${t('perPerson')}</div>`;
+  h+=`<div style="font-size:11.5px;color:var(--txt2);margin:-4px 0 9px;display:flex;gap:14px;flex-wrap:wrap"><span style="color:var(--r-green)">${t('legendGet')}</span><span style="color:var(--r-red)">${t('legendPay')}</span></div>`;
+  h+=`<table class="sum"><thead><tr><th>${t('colPerson')}</th><th class="ar">${t('colPaid')}</th><th class="ar">${t('colOwed')}</th><th class="ar">${t('colNet')}</th></tr></thead><tbody>`;
   h+=state.members.map(m=>{const n=m.name,nv=(paid[n]||0)-(owed[n]||0),c=Math.round(nv*100);
-    const cls=c>0?'pos':c<0?'neg':'zero';const lbl=c>0?`+฿${fmt(nv)}`:c<0?`−฿${fmt(-nv)}`:'฿0.00';
+    const cls=c>0?'pos':c<0?'neg':'zero';
+    const amt=c>0?`+฿${fmt(nv)}`:c<0?`−฿${fmt(-nv)}`:'฿0.00';
+    const tag=c>0?t('rowGet'):c<0?t('rowPay'):t('rowSettled');
     return `<tr>
       <td><span class="tcell">${aviImg(n,'av-sm')} ${esc(n)}</span></td>
       <td class="ar">฿${fmt(paid[n]||0)}</td>
       <td class="ar" style="color:var(--muted)">฿${fmt(owed[n]||0)}</td>
-      <td class="ar ${cls}" style="font-weight:700">${lbl}</td></tr>`;}).join('');
+      <td class="ar ${cls}" style="font-weight:700">${amt}<div style="font-size:10.5px;font-weight:500;opacity:.85">${tag}</div></td></tr>`;}).join('');
   h+=`</tbody></table></div>`;
-  h+=`</div>
-    <div style="text-align:center;font-size:11px;color:var(--muted);margin-top:18px">🌈 สร้างด้วย Trip Split</div>
-    </div>`;
+  h+=`</div>`;
+  const withPay=state.members.filter(m=>{const p=m.pay;return p&&((p.bank&&(p.bank.no||p.bank.bank))||(p.promptpay&&p.promptpay.no));});
+  if(withPay.length){
+    h+=`<div style="margin-top:20px"><div class="tbl-title">${t('payChannels')}</div>`;
+    h+=`<table class="sum" style="--rowpad:14px"><thead><tr><th>${t('colWho')}</th><th>${t('colChannel')}</th></tr></thead><tbody>`;
+    h+=withPay.map(m=>`<tr>
+      <td><span class="tcell">${aviImg(m.name,'av-sm')} ${esc(m.name)}</span></td>
+      <td><span class="pay-info">${payLines(m.pay,false)}</span></td></tr>`).join('');
+    h+=`</tbody></table></div>`;
+  }
+  h+=`<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:18px">${t('madeWith')}</div>
+    </div></div>`;
   document.getElementById('modalBody').innerHTML=h;
   document.getElementById('overlay').classList.add('show');
 }
@@ -591,41 +1047,195 @@ function closeSummary(){document.getElementById('overlay').classList.remove('sho
 
 function savePNG(){
   const node=document.getElementById('capArea');
-  if(!node){toast('ไม่พบเนื้อหา');return;}
-  const btn=document.getElementById('pngBtn');btn.textContent='⏳ กำลังสร้างรูป...';
+  if(!node){toast(t('noContent'));return;}
+  const btn=document.getElementById('pngBtn');btn.textContent=t('pngMaking');
   const bg=getComputedStyle(document.querySelector('.modal')).backgroundColor;
   htmlToImage.toPng(node,{pixelRatio:2,backgroundColor:bg,cacheBust:true})
-    .then(url=>{const a=document.createElement('a');a.download=(state.tripName||'trip-split')+'-สรุป.png';a.href=url;a.click();
-      btn.textContent='🖼️ บันทึกเป็นรูป PNG';toast('บันทึกรูปแล้ว 🖼️');})
-    .catch(e=>{btn.textContent='🖼️ บันทึกเป็นรูป PNG';toast('สร้างรูปไม่สำเร็จ');console.error(e);});
+    .then(url=>{const a=document.createElement('a');a.download=(state.tripName||'trip-split')+t('pngName')+'.png';a.href=url;a.click();
+      btn.textContent=t('savePng');toast(t('pngSaved'));})
+    .catch(e=>{btn.textContent=t('savePng');toast(t('pngFail'));console.error(e);});
 }
 
+/* ============ TRIPS (MULTI) ============ */
+function renderTripSelect(){const s=document.getElementById('tripSelect');if(!s)return;
+  s.innerHTML=state.trips.map(tr=>`<option value="${tr.id}">${esc(tr.tripName||t('newTripName'))}</option>`).join('');
+  s.value=state.currentTripId;}
+function onTripSelect(id){
+  if(id===state.currentTripId)return;
+  syncCurrentToTrips();
+  if(confirm(t('tripSwitchSave')(state.tripName||t('newTripName')))){ save(); }
+  state.currentTripId=id;pruneEmptyTrips();loadCurrentTrip();save();renderAll();
+}
+function deleteTrip(){
+  if(state.trips.length<=1){toast(t('cantDeleteLast'));return;}
+  const tr=currentTrip();
+  if(!confirm(t('confirmDeleteTrip')(tr.tripName||t('newTripName'))))return;
+  state.trips=state.trips.filter(function(x){return x.id!==state.currentTripId;});
+  state.currentTripId=state.trips[0].id;loadCurrentTrip();save();renderAll();toast(t('tripDeleted'));
+}
+function newTrip(){
+  const inp=document.getElementById('newTripName');
+  const name=(inp?inp.value:'').trim();
+  if(!name){toast(t('needTripName'));if(inp)inp.focus();return;}
+  syncCurrentToTrips();
+  const tr={id:uid(),tripName:name,members:[],bills:[],updatedAt:Date.now()};
+  state.trips.push(tr);state.currentTripId=tr.id;
+  pruneEmptyTrips();
+  loadCurrentTrip();
+  if(inp)inp.value='';
+  save();renderAll();
+}
+function renameCurrentTrip(){
+  const cur=currentTrip();if(!cur)return;
+  const raw=prompt(t('renamePrompt'),cur.tripName||'');
+  if(raw===null)return;
+  renameTrip(raw.trim());renderTripSelect();
+}
+function renameTrip(v){state.tripName=v;const tr=currentTrip();if(tr)tr.tripName=v;
+  const s=document.getElementById('tripSelect');if(s){const o=[...s.options].find(x=>x.value===state.currentTripId);if(o)o.text=v||t('newTripName');}
+  save();}
+
 /* ============ RENDER ALL ============ */
-function renderAll(){document.getElementById('tripName').value=state.tripName||'';
+function renderAll(){renderTripSelect();
   renderMembers();renderPayerSelect();renderPickGrid();renderBills();renderSummary();}
 
 /* ============ EXPORT / IMPORT / RESET ============ */
 function exportData(){
-  if(!state.members.length&&!state.bills.length){toast('ยังไม่มีข้อมูลให้บันทึก');return;}
+  if(!state.members.length&&!state.bills.length){toast(t('noData'));return;}
   const payload={app:'trip-split',version:4,savedAt:new Date().toISOString(),tripName:state.tripName,members:state.members,bills:state.bills};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const name=(state.tripName||'trip-split').replace(/[\\/:*?"<>|]/g,'-');
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.json';a.click();
-  toast('บันทึกไฟล์ข้อมูลแล้ว 💾');}
+  toast(t('dataSaved'));}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
   r.onload=()=>{try{const p=JSON.parse(r.result);state.tripName=p.tripName||'';
-    state.members=(p.members||[]).map(m=>({id:m.id||uid(),name:m.name,gender:m.gender||'any'}));
-    state.bills=p.bills||[];resetForm();save();renderAll();toast('Import สำเร็จ ✅');}catch(err){toast('ไฟล์ไม่ถูกต้อง');}};
+    state.members=(p.members||[]).map(m=>({id:m.id||uid(),name:m.name,gender:m.gender||'any',pay:m.pay||{}}));
+    state.bills=p.bills||[];syncCurrentToTrips();resetForm();save();applyLang();toast(t('imported'));}catch(err){toast(t('badFile'));}};
   r.readAsText(f);e.target.value='';}
-function resetAll(){if(!confirm('ล้างข้อมูลทั้งหมด? (กู้คืนไม่ได้ — แนะนำ Export ก่อน)'))return;
-  const th=state.theme;state={tripName:'',members:[],bills:[],splitMode:'equal',picked:{},amts:{},editingId:null,theme:th,newGender:'any'};
-  localStorage.removeItem(KEY);resetForm();setNewGender('any');renderAll();save();toast('ล้างแล้ว');}
+function resetAll(){if(!confirm(t('confirmReset')))return;
+  const th=state.theme,lg=state.lang;const fresh={id:uid(),tripName:'',members:[],bills:[],updatedAt:Date.now()};
+  state={tripName:'',members:[],bills:[],splitMode:'equal',picked:{},amts:{},editingId:null,theme:th,newGender:'any',lang:lg,editingMemberId:null,trips:[fresh],currentTripId:fresh.id};
+  localStorage.removeItem(KEY);resetForm();setNewGender('any');renderAll();save();toast(t('cleared'));}
+
+
+/* ============ FIREBASE CLOUD SYNC (TOKEN-BASED) ============ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBlfuwluJD2FZTM9Li6RaxM2LaeEC8Ix0U",
+  authDomain: "trip-split-55ad4.firebaseapp.com",
+  projectId: "trip-split-55ad4",
+  storageBucket: "trip-split-55ad4.firebasestorage.app",
+  messagingSenderId: "626171292999",
+  appId: "1:626171292999:web:c69fa39b710fb9930ff062"
+};
+const TOKEN_KEY='tripSplit.token';
+let fbReady=false, fbDb=null, fbSaveTimer=null, fbApplyingRemote=false, fbToken=null;
+function firebaseEnabled(){return !!(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId);}
+function genToken(){
+  // อ่านง่าย: 4 กลุ่ม กลุ่มละ 4 ตัว (เลี่ยงตัวที่สับสน 0/O/1/l)
+  const cs='abcdefghjkmnpqrstuvwxyz23456789';
+  let parts=[];
+  for(let g=0;g<4;g++){let s='';for(let i=0;i<4;i++)s+=cs[Math.floor(Math.random()*cs.length)];parts.push(s);}
+  return parts.join('-');
+}
+function getToken(){
+  let tkn=null; try{tkn=localStorage.getItem(TOKEN_KEY);}catch(e){}
+  if(!tkn){tkn=genToken(); try{localStorage.setItem(TOKEN_KEY,tkn);}catch(e){}}
+  return tkn;
+}
+function setToken(tkn){fbToken=tkn; try{localStorage.setItem(TOKEN_KEY,tkn);}catch(e){}}
+function initFirebase(){
+  if(!firebaseEnabled())return;
+  if(typeof firebase==='undefined'){console.warn('Firebase SDK not loaded');return;}
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    fbDb=firebase.firestore(); fbReady=true; fbToken=getToken();
+    document.getElementById('cloudBtn').style.display='';
+    updateCloudBtn();
+    pullFromCloud();
+  }catch(e){console.error('Firebase init error',e);}
+}
+function updateCloudBtn(){
+  const b=document.getElementById('cloudBtn'); if(!b)return;
+  b.textContent=t('synced'); b.title=t('tokenTitle')+': '+(fbToken||'');
+  b.style.background='#10b981'; b.style.borderColor='#10b981'; b.style.color='#ffffff';
+}
+function docRef(){ return fbDb.collection('tripsplit').doc(fbToken); }
+function applyRemoteData(d){
+  fbApplyingRemote=true;
+  if(Array.isArray(d.trips)&&d.trips.length){
+    state.trips=d.trips.map(function(tr){return {id:tr.id||uid(),tripName:tr.tripName||'',
+      members:(tr.members||[]).map(function(m){return {id:m.id||uid(),name:m.name,gender:m.gender||'any',pay:m.pay||{}};}),
+      bills:tr.bills||[],updatedAt:tr.updatedAt||Date.now()};});
+  } else if(d.members||d.bills||d.tripName){
+    state.trips=[{id:uid(),tripName:d.tripName||'',
+      members:(d.members||[]).map(function(m){return {id:m.id||uid(),name:m.name,gender:m.gender||'any',pay:m.pay||{}};}),
+      bills:d.bills||[],updatedAt:d.updatedAt||Date.now()}];
+  }
+  if(!state.trips.length)state.trips=[{id:uid(),tripName:'',members:[],bills:[],updatedAt:Date.now()}];
+  state.currentTripId=(d.currentTripId&&state.trips.some(t=>t.id===d.currentTripId))?d.currentTripId:state.trips[0].id;
+  loadCurrentTrip();
+  fbApplyingRemote=false;
+  resetForm(); applyLang();
+}
+function pullFromCloud(){
+  if(!fbReady||!fbToken)return;
+  const b=document.getElementById('cloudBtn'); if(b)b.textContent=t('syncing');
+  docRef().get().then(function(snap){
+    if(snap.exists){
+      applyRemoteData(snap.data());
+      toast(t('cloudPulled'));
+    } else {
+      // ยังไม่มีบนคลาวด์ -> อัปข้อมูลในเครื่องนี้ขึ้นไปผูกกับ token
+      pushToCloud(true);
+    }
+    updateCloudBtn();
+  }).catch(function(e){console.error(e);updateCloudBtn();});
+}
+function pushToCloud(immediate){
+  if(!fbReady||!fbToken||fbApplyingRemote)return;
+  clearTimeout(fbSaveTimer);
+  const doIt=function(){
+    const b=document.getElementById('cloudBtn'); if(b)b.textContent=t('syncing');
+    syncCurrentToTrips();
+    docRef().set({
+      trips:state.trips||[], currentTripId:state.currentTripId||null, updatedAt:Date.now()
+    }).then(function(){updateCloudBtn();}).catch(function(e){console.error(e);updateCloudBtn();});
+  };
+  if(immediate) doIt(); else fbSaveTimer=setTimeout(doIt,900);
+}
+/* ---- token modal actions ---- */
+function openTokenModal(){
+  document.getElementById('tokenView').value=fbToken||getToken();
+  document.getElementById('tokenInput').value='';
+  document.getElementById('tokenOverlay').classList.add('show');
+}
+function closeTokenModal(){document.getElementById('tokenOverlay').classList.remove('show');}
+function copyToken(){const v=document.getElementById('tokenView').value;
+  if(navigator.clipboard){navigator.clipboard.writeText(v).then(()=>toast(t('copied'))).catch(()=>{});}}
+function applyTokenInput(){
+  const v=(document.getElementById('tokenInput').value||'').trim();
+  if(!v){toast(t('needToken'));return;}
+  if(!confirm(t('confirmUseToken')))return;
+  setToken(v);
+  closeTokenModal();
+  pullFromCloud();
+  toast(t('tokenSwitched'));
+}
+function regenToken(){
+  if(!confirm(t('confirmNewToken')))return;
+  setToken(genToken());
+  document.getElementById('tokenView').value=fbToken;
+  pushToCloud(true); // อัปข้อมูลปัจจุบันผูกกับ token ใหม่
+  updateCloudBtn();
+  toast(t('tokenNew'));
+}
 
 /* ============ INIT ============ */
 load();applyTheme();
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeSummary();});
 document.getElementById('bDate').value=new Date().toISOString().slice(0,10);
-renderAll();
+applyLang();
+initFirebase();
 </script>
 </body>
 </html>
